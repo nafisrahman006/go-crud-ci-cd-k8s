@@ -1,0 +1,35 @@
+name: Docker Build Check
+
+on:
+  push:
+    branches:
+      - docker
+  pull_request:
+    branches:
+      - docker
+
+jobs:
+  build-docker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Lint Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: ./Dockerfile
+        continue-on-error: true
+
+      - name: Dry run docker build process
+        run: |
+          docker build --progress=plain --no-cache -t test-image .
+          
+      - name: Security Scan with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'test-image'
+          format: 'table'
+          exit-code: 1
+          severity: 'CRITICAL,HIGH'

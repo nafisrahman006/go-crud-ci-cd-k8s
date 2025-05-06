@@ -6,14 +6,16 @@ A secure, lightweight, and containerized CRUD application built with Go and uses
 GO-CRUD/
 ├── .github/               # GitHub workflows for CI/CD
 ├── .env                   # Environment variables (local use)
+|── Screenshots            # Screenshots
+|── HELM charts            # HELM Charts
 ├── .gitignore             # Git ignored files
 ├── docker-compose.yml     # Multi-service orchestration
 ├── Dockerfile             # Image build configuration
 ├── go.mod                 # Go module file
 ├── go.sum                 # Go dependency checksums
 ├── main.go                # Main application entry point
-└── readme.MD              # Project documentation
-└── deployall.yaml         # K8s yaml file
+|── readme.MD              # Project documentation
+|── deployall.yaml         # K8s yaml file
 
 ```
 

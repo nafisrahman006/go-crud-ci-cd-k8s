@@ -7,7 +7,7 @@ GO-CRUD/
 ├── .github/               # GitHub workflows for CI/CD
 ├── .env                   # Environment variables (local use)
 |── Screenshots            # Screenshots
-|── HELM charts            # HELM Charts
+|── user-api               # HELM Charts
 ├── .gitignore             # Git ignored files
 ├── docker-compose.yml     # Multi-service orchestration
 ├── Dockerfile             # Image build configuration

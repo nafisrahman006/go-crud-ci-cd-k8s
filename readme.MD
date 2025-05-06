@@ -84,3 +84,30 @@ You can also use TablePlus to visually inspect the data in the PostgreSQL table:
 
 ![](screenshots/table.png)
 
+# Deployment with Helm Chart
+
+This Helm chart defines the deployment of a PostgreSQL database using Kubernetes resources. Below is a summary of the key configurations:
+
+## Deployment Overview
+- **Deployment Name**: `postgres`
+- **Replica Count**: 1 (single instance of PostgreSQL)
+- **Container Image**: Configured dynamically using the Helm values file (`{{ .Values.postgres.image }}`).
+- **Environment Variables**: Loaded from a Kubernetes Secret named `postgres-credentials`.
+- **Port Configuration**: Exposes PostgreSQL on container port `5432`.
+- **Persistent Storage**:
+  - A Persistent Volume Claim (PVC) named `postgres-pvc` is used to store PostgreSQL data.
+  - The data is mounted to the container at `/var/lib/postgresql/data`.
+- **Helm installation**
+```
+helm install user-api ./user-api \
+  --set postgres.credentials.user=  \
+  --set postgres.credentials.password=  \
+  --set postgres.credentials.db=
+  ```
+
+## Helm Chart Benefits
+- **Dynamic Configuration**: The use of Helm templates allows for easy customization of the PostgreSQL image and other parameters.
+- **Secure Secrets Management**: Sensitive credentials are managed securely using Kubernetes Secrets.
+- **Persistent Data**: Ensures data durability with a Persistent Volume Claim.
+
+This setup provides a scalable and configurable way to deploy PostgreSQL in a Kubernetes environment.

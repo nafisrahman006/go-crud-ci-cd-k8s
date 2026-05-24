@@ -155,9 +155,9 @@ postgres:
   pvcSize: 1Gi
   nodePort: 30010
   credentials:
-    user: myuser
-    password: mypass
-    db: mydb
+    user: 
+    password: 
+    db: 
 
 service:
   type: NodePort

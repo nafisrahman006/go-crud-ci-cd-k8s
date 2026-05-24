@@ -1,13 +1,9 @@
-# Combined Kubernetes Manifest for Go CRUD App with PostgreSQL
 apiVersion: v1
-kind: Secret
+kind: ServiceAccount
 metadata:
-  name: postgres-credentials
-type: Opaque
-data:
-  POSTGRES_USER: "bXl1c2Vy"         
-  POSTGRES_PASSWORD: "bXlwYXNz"      
-  POSTGRES_DB: "bXlkYg=="             
+  name: go-crud-app-sa
+  namespace: default
+
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -19,6 +15,7 @@ spec:
   resources:
     requests:
       storage: 1Gi
+
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -33,13 +30,26 @@ spec:
     metadata:
       labels:
         app: postgres
+      annotations:
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "go-crud-app"
+        vault.hashicorp.com/agent-inject-secret-config: "secret/data/go-crud-app"
+        vault.hashicorp.com/agent-inject-template-config: |
+          {{- with secret "secret/data/go-crud-app" -}}
+          export POSTGRES_USER="{{ .Data.data.POSTGRES_USER }}"
+          export POSTGRES_PASSWORD="{{ .Data.data.POSTGRES_PASSWORD }}"
+          export POSTGRES_DB="{{ .Data.data.POSTGRES_DB }}"
+          {{- end }}
     spec:
+      serviceAccountName: go-crud-app-sa
       containers:
       - name: postgres
         image: postgres:12
-        envFrom:
-        - secretRef:
-            name: postgres-credentials
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            . /vault/secrets/config
+            docker-entrypoint.sh postgres
         ports:
         - containerPort: 5432
         volumeMounts:
@@ -49,20 +59,20 @@ spec:
       - name: postgres-data
         persistentVolumeClaim:
           claimName: postgres-pvc
+
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: postgres-service
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: postgres
   ports:
     - protocol: TCP
       port: 5432
       targetPort: 5432
-      nodePort: 30010  # choose an unused port
 
 ---
 apiVersion: apps/v1
@@ -78,34 +88,38 @@ spec:
     metadata:
       labels:
         app: go-crud-app
+      annotations:
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "go-crud-app"
+        vault.hashicorp.com/agent-inject-secret-config: "secret/data/go-crud-app"
+        vault.hashicorp.com/agent-inject-template-config: |
+          {{- with secret "secret/data/go-crud-app" -}}
+          export POSTGRES_USER="{{ .Data.data.POSTGRES_USER }}"
+          export POSTGRES_PASSWORD="{{ .Data.data.POSTGRES_PASSWORD }}"
+          export POSTGRES_DB="{{ .Data.data.POSTGRES_DB }}"
+          export DATABASE_URL="postgres://{{ .Data.data.POSTGRES_USER }}:{{ .Data.data.POSTGRES_PASSWORD }}@postgres-service:5432/{{ .Data.data.POSTGRES_DB }}?sslmode=disable"
+          {{- end }}
     spec:
+      serviceAccountName: go-crud-app-sa
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
         fsGroup: 1000
+      initContainers:
+      - name: wait-for-postgres
+        image: busybox
+        command: ['sh', '-c',
+          'until nc -z postgres-service 5432;
+           do echo "waiting for postgres..."; sleep 3; done;
+           echo "postgres ready!"']
       containers:
       - name: app
         image: nfsr/gocrudapp:v3
+        command: ["/bin/sh", "-c"]
+        args:
+          - . /vault/secrets/config && ./api
         ports:
         - containerPort: 8000
-        env:
-        - name: POSTGRES_USER
-          valueFrom:
-            secretKeyRef:
-              name: postgres-credentials
-              key: POSTGRES_USER
-        - name: POSTGRES_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: postgres-credentials
-              key: POSTGRES_PASSWORD
-        - name: POSTGRES_DB
-          valueFrom:
-            secretKeyRef:
-              name: postgres-credentials
-              key: POSTGRES_DB
-        - name: DATABASE_URL
-          value: "postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres-service:5432/$(POSTGRES_DB)?sslmode=disable"
         resources:
           limits:
             cpu: "500m"
@@ -113,6 +127,7 @@ spec:
           requests:
             cpu: "100m"
             memory: "128Mi"
+
 ---
 apiVersion: v1
 kind: Service
@@ -127,4 +142,3 @@ spec:
       port: 8000
       targetPort: 8000
       nodePort: 30080
-      
